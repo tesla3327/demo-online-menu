@@ -3,89 +3,100 @@ import { ref, computed } from 'vue'
 import type { MenuItem, OrderItem, Order } from './types'
 import menu from './menu'
 
-const currentSelection = ref<OrderItem | undefined>(undefined)
-const order = ref<Order>([])
+const useOrder = () => {
+  const currentSelection = ref<OrderItem | undefined>(undefined)
+  const order = ref<Order>([])
 
-const selectItem = (item: MenuItem) => {
-  currentSelection.value = {
-    menuItem: item.id,
-    size: item.sizes[0].size,
-    upgrades: []
-  }
-}
-
-const addToOrder = () => {
-  if (!currentSelection.value) {
-    return
+  const selectItem = (item: MenuItem) => {
+    currentSelection.value = {
+      menuItem: item.id,
+      size: item.sizes[0].size,
+      upgrades: []
+    }
   }
 
-  order.value.push(currentSelection.value)
-  currentSelection.value = undefined
-}
-
-const calculateOrderTotal = (order: Order): number => {
-  let total = 0
-
-  order.forEach((orderItem) => {
-    const menuItem = findMenuItem(orderItem.menuItem)
-    if (!menuItem) {
+  const addToOrder = () => {
+    if (!currentSelection.value) {
       return
     }
 
-    const size = menuItem.sizes.find(({ size }) => size === orderItem.size)
-    if (!size) {
-      return
-    }
+    order.value.push(currentSelection.value)
+    currentSelection.value = undefined
+  }
 
-    total += size.price
+  const findMenuItem = (id: string): MenuItem | undefined => menu.find((item) => item.id === id)
+  const orderTotal = computed((): number => {
+    let total = 0
 
-    orderItem.upgrades.forEach((upgradeId) => {
-      const upgrade = menuItem.upgrades.find(({ id }) => id === upgradeId)
-      if (!upgrade) {
+    order.value.forEach((orderItem) => {
+      const menuItem = findMenuItem(orderItem.menuItem)
+      if (!menuItem) {
         return
       }
 
-      total += upgrade.price
-    })
-  })
-
-  return total
-}
-const findMenuItem = (id: string): MenuItem | undefined => menu.find((item) => item.id === id)
-const orderTotal = computed(() => calculateOrderTotal(order.value))
-
-const orderSummary = computed(() => {
-  const summary: Record<string, { quantity: number; price: number }> = {}
-
-  order.value.forEach((orderItem) => {
-    const menuItem = findMenuItem(orderItem.menuItem)
-    if (!menuItem) {
-      return
-    }
-
-    const size = menuItem.sizes.find(({ size }) => size === orderItem.size)
-    if (!size) {
-      return
-    }
-
-    let upgradesString = ''
-    orderItem.upgrades.forEach((upgradeId) => {
-      const upgrade = menuItem.upgrades.find(({ id }) => id === upgradeId)
-      if (!upgrade) {
+      const size = menuItem.sizes.find(({ size }) => size === orderItem.size)
+      if (!size) {
         return
       }
 
-      upgradesString += ` - ${upgrade.name}`
+      total += size.price
+
+      orderItem.upgrades.forEach((upgradeId) => {
+        const upgrade = menuItem.upgrades.find(({ id }) => id === upgradeId)
+        if (!upgrade) {
+          return
+        }
+
+        total += upgrade.price
+      })
     })
 
-    const key = `${menuItem.name} (${size.size})${upgradesString}`
-    summary[key] = summary[key]
-      ? { quantity: summary[key].quantity + 1, price: size.price }
-      : { quantity: 1, price: size.price }
+    return total
   })
 
-  return summary
-})
+  const orderSummary = computed(() => {
+    const summary: Record<string, { quantity: number; price: number }> = {}
+
+    order.value.forEach((orderItem) => {
+      const menuItem = findMenuItem(orderItem.menuItem)
+      if (!menuItem) {
+        return
+      }
+
+      const size = menuItem.sizes.find(({ size }) => size === orderItem.size)
+      if (!size) {
+        return
+      }
+
+      let upgradesString = ''
+      orderItem.upgrades.forEach((upgradeId) => {
+        const upgrade = menuItem.upgrades.find(({ id }) => id === upgradeId)
+        if (!upgrade) {
+          return
+        }
+
+        upgradesString += ` - ${upgrade.name}`
+      })
+
+      const key = `${menuItem.name} (${size.size})${upgradesString}`
+      summary[key] = summary[key]
+        ? { quantity: summary[key].quantity + 1, price: size.price }
+        : { quantity: 1, price: size.price }
+    })
+
+    return summary
+  })
+
+  return {
+    currentSelection,
+    selectItem,
+    addToOrder,
+    orderTotal,
+    orderSummary
+  }
+}
+
+const { currentSelection, selectItem, addToOrder, orderTotal, orderSummary } = useOrder()
 </script>
 
 <template>
